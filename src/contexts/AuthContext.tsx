@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .select('*')
       .eq('id', userId)
       .maybeSingle();
-    
+
     if (error) {
       console.error('Error fetching profile:', error);
       return null;
@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .from('team_memberships')
       .select('*, teams(id, name)')
       .eq('profile_id', userId);
-    
+
     if (error) {
       console.error('Error fetching team memberships:', error);
       return [];
@@ -97,39 +97,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshProfile = async () => {
     if (!user) return;
-    
+
     const [profileData, memberships] = await Promise.all([
       fetchProfile(user.id),
       fetchTeamMemberships(user.id)
     ]);
-    
+
     setProfile(profileData);
     setTeamMemberships(memberships);
-    
-    // Set first team as current if none selected
+
     if (!currentTeam && memberships.length > 0 && memberships[0].teams) {
       setCurrentTeam(memberships[0].teams);
     }
   };
 
   useEffect(() => {
-    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      async (_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        
+
         if (session?.user) {
-          // Use setTimeout to avoid potential race conditions
           setTimeout(async () => {
             const [profileData, memberships] = await Promise.all([
               fetchProfile(session.user.id),
               fetchTeamMemberships(session.user.id)
             ]);
-            
+
             setProfile(profileData);
             setTeamMemberships(memberships);
-            
+
             if (memberships.length > 0 && memberships[0].teams) {
               setCurrentTeam(memberships[0].teams);
             }
@@ -144,22 +141,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        setIsLoading(false);
-      }
-      // Auth state change listener will handle the rest
+      if (!session) setIsLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const getAuthHeader = async () => {
-    const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token;
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  };
+  // Maps the in-memory PendingSignupData to the metadata key shape that
+  // handle_new_user() reads in the database trigger. Snake-case here is the
+  // contract with the SQL — keep them in sync.
+  const signupDataAsMetadata = () =>
+    pendingSignupData
+      ? {
+          first_name: pendingSignupData.firstName,
+          last_name: pendingSignupData.lastName,
+          role: pendingSignupData.role,
+          phone: pendingSignupData.phone ?? null,
+        }
+      : undefined;
 
   const sendOtp = async (
     identifier: string,
@@ -167,27 +167,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     purpose: OtpPurpose = 'login'
   ) => {
     try {
-      const authHeader = purpose === 'phone_verification' ? await getAuthHeader() : {};
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-otp`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            ...authHeader,
-          },
-          body: JSON.stringify({ identifier, method, purpose }),
-        }
-      );
-
-      const data = await response.json();
-      
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Failed to send verification code');
+      // Phone verification on an already-signed-in user goes through
+      // updateUser, which makes Supabase send an SMS code to the new phone
+      // and stores it as the user's pending phone (confirmed by phone_change
+      // verifyOtp call below).
+      if (purpose === 'phone_verification') {
+        const { error } = await supabase.auth.updateUser({ phone: identifier });
+        return { error: error as Error | null };
       }
-      
-      return { error: null };
+
+      // Login/signup OTP. shouldCreateUser=true only when we have signup
+      // data in hand — that's how we distinguish "create the account" from
+      // "user better already exist."
+      const shouldCreateUser = !!pendingSignupData;
+      const data = signupDataAsMetadata();
+
+      const { error } = method === 'email'
+        ? await supabase.auth.signInWithOtp({
+            email: identifier,
+            options: { shouldCreateUser, data },
+          })
+        : await supabase.auth.signInWithOtp({
+            phone: identifier,
+            options: { shouldCreateUser, data },
+          });
+
+      return { error: error as Error | null };
     } catch (error) {
       return { error: error as Error };
     }
@@ -195,65 +200,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const verifyOtp = async (identifier: string, token: string, method: 'email' | 'sms' = 'email') => {
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-otp`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          },
-          body: JSON.stringify({
-            identifier,
-            method,
-            purpose: 'login',
-            code: token,
-            signupData: pendingSignupData ? {
-              firstName: pendingSignupData.firstName,
-              lastName: pendingSignupData.lastName,
-              phone: pendingSignupData.phone,
-              role: pendingSignupData.role,
-            } : undefined,
-          }),
-        }
-      );
+      const { error } = method === 'email'
+        ? await supabase.auth.verifyOtp({ email: identifier, token, type: 'email' })
+        : await supabase.auth.verifyOtp({ phone: identifier, token, type: 'sms' });
 
-      const data = await response.json();
-      
-      if (!response.ok || !data.success) {
-        // Check if user needs to sign up
-        if (data.needsSignup) {
-          return { error: new Error(data.error || 'No account found'), isNewUser: false, needsSignup: true };
-        }
-        throw new Error(data.error || 'Invalid verification code');
+      if (error) {
+        // Supabase returns a 4xx with "Signups not allowed for otp" (or
+        // similar) when shouldCreateUser=false hits a non-existent user.
+        // Surface that as needsSignup so the UI can route to /signup.
+        const msg = error.message?.toLowerCase() ?? '';
+        const needsSignup =
+          msg.includes('signups not allowed') ||
+          msg.includes('not found') ||
+          msg.includes('does not exist');
+        return { error: error as Error, isNewUser: false, needsSignup };
       }
 
-      // Clear pending signup data after successful verification
-      const isNewUser = data.isNewUser;
+      // Session establishes via the auth state listener; nothing to do here
+      // beyond resolving the signup intent.
+      const isNewUser = !!pendingSignupData;
+      // Keep pendingSignupData around if a phone is queued for verification
+      // post-signup (the ProtectedRoute checks pendingSignupData?.phone to
+      // gate /verify-phone). Otherwise clear it.
       if (isNewUser && !pendingSignupData?.phone) {
         setPendingSignupData(null);
       }
 
-      // Use the action link to authenticate the user
-      if (data.actionLink) {
-        // Extract token from action link and verify
-        const url = new URL(data.actionLink);
-        const linkToken = url.searchParams.get('token');
-        const type = url.searchParams.get('type') as 'magiclink' | 'recovery' | 'invite' | 'email';
-        
-        if (linkToken) {
-          const { error: verifyError } = await supabase.auth.verifyOtp({
-            token_hash: linkToken,
-            type: type || 'magiclink',
-          });
-          
-          if (verifyError) {
-            console.error('Session verification error:', verifyError);
-            throw verifyError;
-          }
-        }
-      }
-      
       return { error: null, isNewUser, needsSignup: false };
     } catch (error) {
       return { error: error as Error, isNewUser: false, needsSignup: false };
@@ -266,30 +238,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const verifyPhoneOtp = async (phone: string, code: string) => {
     try {
-      const authHeader = await getAuthHeader();
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-otp`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            ...authHeader,
-          },
-          body: JSON.stringify({
-            identifier: phone,
-            method: 'sms',
-            purpose: 'phone_verification',
-            code,
-          }),
-        }
-      );
+      const { error } = await supabase.auth.verifyOtp({
+        phone,
+        token: code,
+        type: 'phone_change',
+      });
+      if (error) return { error: error as Error };
 
-      const data = await response.json();
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Invalid verification code');
-      }
-
+      // The mirror_auth_phone_to_profile trigger copies the confirmed phone
+      // into profiles.phone. Clear pendingSignupData now that signup +
+      // phone verification are both done.
+      setPendingSignupData(null);
       return { error: null };
     } catch (error) {
       return { error: error as Error };

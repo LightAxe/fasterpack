@@ -1,10 +1,4 @@
-project_id = "tkshatphagquissyykvc"
-
-[functions.send-otp]
-verify_jwt = false
-
-[functions.verify-otp]
-verify_jwt = false
+project_id = "ovcqsuadegwgembrnfzm"
 
 [functions.export-data]
 verify_jwt = false

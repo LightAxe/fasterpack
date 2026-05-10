@@ -22,3 +22,21 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Env (values like Supabase URL + anon key are public-by-design but kept
+# out of git so private secrets never accidentally land here)
+.env
+.env.*
+!.env.example
+
+# Supabase CLI cache (project ref, pooler URL, version pins)
+supabase/.temp/
+
+# Terraform / OpenTofu
+**/.terraform/
+**/.terraform.lock.hcl
+**/*.tfstate
+**/*.tfstate.*
+**/*.tfvars
+!**/*.tfvars.example
+**/crash.log

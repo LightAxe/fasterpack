@@ -2,16 +2,13 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import * as fflate from "https://esm.sh/fflate@0.8.2";
 
-// Dynamic CORS with pattern matching for lovable.app domains
 function isAllowedOrigin(origin: string | null): boolean {
   if (!origin) return false;
 
-  // Allow lovable.app domains (preview and production)
-  if (/^https:\/\/[a-z0-9-]+\.lovable\.app$/i.test(origin)) {
+  if (/^https:\/\/(www\.)?fasterpack\.net$/i.test(origin)) {
     return true;
   }
 
-  // Allow localhost for development
   if (/^http:\/\/localhost:\d+$/.test(origin)) {
     return true;
   }
