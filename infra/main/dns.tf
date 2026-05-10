@@ -15,6 +15,19 @@ resource "aws_route53_record" "caa" {
   ]
 }
 
+# Domain ownership proof for Google Search Console. Google polls this until
+# verified, then keeps polling occasionally — don't remove without first
+# removing the property from Search Console.
+resource "aws_route53_record" "apex_txt_verifications" {
+  zone_id = aws_route53_zone.primary.zone_id
+  name    = local.apex_domain
+  type    = "TXT"
+  ttl     = 3600
+  records = [
+    "google-site-verification=rEkv0hx0n28o8gLiG45EOvGfrpI3DS39KDA8_2qcYXY",
+  ]
+}
+
 resource "aws_route53_record" "apex_a" {
   zone_id = aws_route53_zone.primary.zone_id
   name    = local.apex_domain

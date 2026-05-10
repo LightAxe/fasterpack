@@ -45,17 +45,21 @@ jobs:
         run: |
           aws s3 sync ./dist "s3://${{ vars.SITE_BUCKET_NAME }}" --delete \
             --exclude "*.html" \
+            --exclude "*.xml" \
+            --exclude "*.txt" \
             --exclude "sw.js" \
             --exclude "workbox-*.js" \
             --exclude "manifest.webmanifest" \
             --exclude "registerSW.js" \
             --cache-control "public, max-age=31536000, immutable"
 
-      - name: Sync to S3 (short-cache shell + PWA)
+      - name: Sync to S3 (short-cache shell + PWA + crawler files)
         run: |
           aws s3 sync ./dist "s3://${{ vars.SITE_BUCKET_NAME }}" --delete \
             --exclude "*" \
             --include "*.html" \
+            --include "*.xml" \
+            --include "*.txt" \
             --include "sw.js" \
             --include "workbox-*.js" \
             --include "manifest.webmanifest" \
