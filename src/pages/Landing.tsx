@@ -185,8 +185,20 @@ export default function Landing() {
 
       {/* Footer */}
       <footer className="border-t border-border py-6 px-4 sm:px-6">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-sm text-muted-foreground">
+        <div className="max-w-6xl mx-auto flex flex-col items-center gap-3 text-sm text-muted-foreground sm:flex-row sm:justify-between">
           <span>&copy; {new Date().getFullYear()} Faster Pack</span>
+          <p>
+            Part of the{' '}
+            <a
+              href="https://axpr.net"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-foreground transition-colors"
+            >
+              axpr
+            </a>{' '}
+            cinematic universe
+          </p>
           <Link to="/privacy" className="hover:text-foreground transition-colors">
             Privacy Policy
           </Link>
