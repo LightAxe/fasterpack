@@ -94,16 +94,18 @@ export default function Signup() {
     const normalizedPhone = data.phone?.trim()
       ? normalizeUSPhone(data.phone) ?? data.phone.trim()
       : '';
-    setPendingSignupData({
+    const signupData = {
       firstName: data.firstName,
       lastName: data.lastName,
       email: data.email,
       phone: normalizedPhone || undefined,
       role: data.role as UserRole,
-    });
-    
-    // Send OTP to email
-    const { error } = await sendOtp(data.email);
+    };
+    setPendingSignupData(signupData);
+
+    // Pass signupData explicitly so sendOtp doesn't race the
+    // React state update from setPendingSignupData above.
+    const { error } = await sendOtp(data.email, 'email', 'login', signupData);
     setIsLoading(false);
 
     if (error) {

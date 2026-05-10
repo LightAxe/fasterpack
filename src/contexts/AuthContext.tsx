@@ -33,7 +33,7 @@ interface AuthContextType {
   isParent: boolean;
   pendingSignupData: PendingSignupData | null;
   setPendingSignupData: (data: PendingSignupData | null) => void;
-  sendOtp: (identifier: string, method?: 'email' | 'sms', purpose?: OtpPurpose) => Promise<{ error: Error | null }>;
+  sendOtp: (identifier: string, method?: 'email' | 'sms', purpose?: OtpPurpose, signupOverride?: PendingSignupData) => Promise<{ error: Error | null }>;
   verifyOtp: (identifier: string, token: string, method?: 'email' | 'sms') => Promise<{ error: Error | null; isNewUser: boolean; needsSignup?: boolean }>;
   sendPhoneVerificationOtp: (phone: string) => Promise<{ error: Error | null }>;
   verifyPhoneOtp: (phone: string, code: string) => Promise<{ error: Error | null }>;
@@ -148,39 +148,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Maps the in-memory PendingSignupData to the metadata key shape that
-  // handle_new_user() reads in the database trigger. Snake-case here is the
-  // contract with the SQL — keep them in sync.
-  const signupDataAsMetadata = () =>
-    pendingSignupData
-      ? {
-          first_name: pendingSignupData.firstName,
-          last_name: pendingSignupData.lastName,
-          role: pendingSignupData.role,
-          phone: pendingSignupData.phone ?? null,
-        }
-      : undefined;
+  // Maps a PendingSignupData to the snake-case metadata shape that the
+  // handle_new_user() trigger reads. The keys here are the contract with
+  // the SQL — keep them in sync.
+  const signupAsMetadata = (signup: PendingSignupData) => ({
+    first_name: signup.firstName,
+    last_name: signup.lastName,
+    role: signup.role,
+    phone: signup.phone ?? null,
+  });
 
   const sendOtp = async (
     identifier: string,
     method: 'email' | 'sms' = 'email',
-    purpose: OtpPurpose = 'login'
+    purpose: OtpPurpose = 'login',
+    signupOverride?: PendingSignupData,
   ) => {
     try {
       // Phone verification on an already-signed-in user goes through
       // updateUser, which makes Supabase send an SMS code to the new phone
-      // and stores it as the user's pending phone (confirmed by phone_change
-      // verifyOtp call below).
+      // and stores it as the user's pending phone (confirmed via the
+      // phone_change verifyOtp call below).
       if (purpose === 'phone_verification') {
         const { error } = await supabase.auth.updateUser({ phone: identifier });
         return { error: error as Error | null };
       }
 
-      // Login/signup OTP. shouldCreateUser=true only when we have signup
-      // data in hand — that's how we distinguish "create the account" from
-      // "user better already exist."
-      const shouldCreateUser = !!pendingSignupData;
-      const data = signupDataAsMetadata();
+      // signupOverride lets Signup.tsx pass the just-collected form data
+      // directly, sidestepping the React state-batching race where the
+      // setPendingSignupData call hasn't yet propagated to this closure.
+      // Falls back to pendingSignupData for resend cases (VerifyOtp page).
+      const effectiveSignup = signupOverride ?? pendingSignupData;
+      const shouldCreateUser = !!effectiveSignup;
+      const data = effectiveSignup ? signupAsMetadata(effectiveSignup) : undefined;
 
       const { error } = method === 'email'
         ? await supabase.auth.signInWithOtp({
