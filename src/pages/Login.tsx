@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { detectIdentifierType, maskPhone } from '@/lib/phone';
+import { AxprFooter } from '@/components/AxprFooter';
 
 const loginSchema = z.object({
   identifier: z.string()
@@ -71,7 +72,8 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex flex-col">
+      <div className="flex-1 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="mx-auto w-12 h-12 rounded-xl bg-primary flex items-center justify-center mb-4">
@@ -119,6 +121,8 @@ export default function Login() {
           </p>
         </CardFooter>
       </Card>
+      </div>
+      <AxprFooter />
     </div>
   );
 }

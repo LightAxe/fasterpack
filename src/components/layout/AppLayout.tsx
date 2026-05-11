@@ -21,6 +21,7 @@ import { RoleSwitcher } from '@/components/RoleSwitcher';
 import { SeasonSelector } from '@/components/seasons/SeasonSelector';
 import { useAuth } from '@/contexts/AuthContext';
 import { useActiveSeason } from '@/hooks/useSeasons';
+import { AxprFooter } from '@/components/AxprFooter';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -178,10 +179,11 @@ export function AppLayout({ children }: AppLayoutProps) {
         </aside>
 
         {/* Main content */}
-        <main className="flex-1 lg:pl-64">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+        <main className="flex-1 lg:pl-64 flex flex-col min-h-screen">
+          <div className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
             {children}
           </div>
+          <AxprFooter />
         </main>
       </div>
     </div>

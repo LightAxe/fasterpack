@@ -2,10 +2,12 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AxprFooter } from '@/components/AxprFooter';
 
 export default function Privacy() {
   return (
-    <div className="min-h-screen bg-background p-4 md:p-8">
+    <div className="min-h-screen bg-background flex flex-col">
+      <div className="flex-1 p-4 md:p-8">
       <div className="max-w-3xl mx-auto">
         <Button variant="ghost" asChild className="mb-6">
           <Link to="/signup">
@@ -124,6 +126,8 @@ export default function Privacy() {
           </CardContent>
         </Card>
       </div>
+      </div>
+      <AxprFooter />
     </div>
   );
 }

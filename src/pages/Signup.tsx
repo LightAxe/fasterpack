@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { normalizeUSPhone } from '@/lib/phone';
+import { AxprFooter } from '@/components/AxprFooter';
 
 const signupSchema = z.object({
   firstName: z.string()
@@ -125,7 +126,8 @@ export default function Signup() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex flex-col">
+      <div className="flex-1 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="mx-auto w-12 h-12 rounded-xl bg-primary flex items-center justify-center mb-4">
@@ -282,6 +284,8 @@ export default function Signup() {
           </p>
         </CardFooter>
       </Card>
+      </div>
+      <AxprFooter />
     </div>
   );
 }

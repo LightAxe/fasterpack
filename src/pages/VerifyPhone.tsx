@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { useToast } from '@/hooks/use-toast';
 import { normalizeUSPhone } from '@/lib/phone';
+import { AxprFooter } from '@/components/AxprFooter';
 
 export default function VerifyPhone() {
   const [phone, setPhone] = useState('');
@@ -115,7 +116,8 @@ export default function VerifyPhone() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex flex-col">
+      <div className="flex-1 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="mx-auto w-12 h-12 rounded-xl bg-primary flex items-center justify-center mb-4">
@@ -188,6 +190,8 @@ export default function VerifyPhone() {
           </Link>
         </CardFooter>
       </Card>
+      </div>
+      <AxprFooter />
     </div>
   );
 }
