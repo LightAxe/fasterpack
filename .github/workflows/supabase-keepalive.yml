@@ -11,12 +11,15 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - name: Ping Supabase health endpoint
+      - name: Ping Supabase
         run: |
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            "${{ vars.VITE_SUPABASE_URL }}/health")
+            "${{ vars.VITE_SUPABASE_URL }}/auth/v1/health")
           echo "Response status: $STATUS"
-          if [ "$STATUS" -lt 200 ] || [ "$STATUS" -ge 400 ]; then
-            echo "Unexpected status code $STATUS"
+          # Any HTTP response means the project is alive (even 401).
+          # Only fail on 5xx errors or no connection (status 000).
+          if [ "$STATUS" -eq 0 ] || [ "$STATUS" -ge 500 ]; then
+            echo "Project unreachable or server error (status $STATUS)"
             exit 1
           fi
+          echo "Project is alive."
