@@ -11,12 +11,10 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - name: Ping Supabase REST API
+      - name: Ping Supabase health endpoint
         run: |
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            "${{ vars.VITE_SUPABASE_URL }}/rest/v1/" \
-            -H "apikey: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}" \
-            -H "Authorization: Bearer ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}")
+            "${{ vars.VITE_SUPABASE_URL }}/health")
           echo "Response status: $STATUS"
           if [ "$STATUS" -lt 200 ] || [ "$STATUS" -ge 400 ]; then
             echo "Unexpected status code $STATUS"
