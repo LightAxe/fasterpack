@@ -1,9 +1,11 @@
 name: Supabase Keepalive
 
+# Supabase free pauses projects after ~7 days without DB activity. A daily
+# REST call against any table is enough to count as activity and keep the
+# project warm. Off-the-hour cron to avoid contention with other workflows.
 on:
   schedule:
-    # Runs every 3 days at 12:00 UTC
-    - cron: '0 12 */3 * *'
+    - cron: '23 11 * * *'
   workflow_dispatch:
 
 jobs:
@@ -11,15 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - name: Ping Supabase
+      - name: GET /rest/v1/distances?limit=1
         run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            "${{ vars.VITE_SUPABASE_URL }}/auth/v1/health")
-          echo "Response status: $STATUS"
-          # Any HTTP response means the project is alive (even 401).
-          # Only fail on 5xx errors or no connection (status 000).
-          if [ "$STATUS" -eq 0 ] || [ "$STATUS" -ge 500 ]; then
-            echo "Project unreachable or server error (status $STATUS)"
-            exit 1
-          fi
-          echo "Project is alive."
+          curl -fsS --max-time 30 \
+            "${{ vars.VITE_SUPABASE_URL }}/rest/v1/distances?select=id&limit=1" \
+            -H "apikey: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}" \
+            -H "Authorization: Bearer ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}"
